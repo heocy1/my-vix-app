@@ -9,37 +9,42 @@ st.markdown("""
     <style>
     .main .block-container {padding-top: 1.5rem; padding-bottom: 1rem;}
     
-    /* 제목 크기를 적절하게 조절 (이전보다 작게) */
+    /* 제목 스타일 */
     .main-title {
         font-size: 1.6rem !important; 
         font-weight: 700; 
         text-align: center; 
-        margin-bottom: 1.5rem;
+        margin-bottom: 1.2rem;
         color: #ffffff;
     }
     
-    /* 지수 폰트 크기 및 스타일 (가로 배치를 위해 최적화) */
-    div[data-testid="stMetricValue"] {
-        font-size: 1.2rem !important; 
-        font-weight: 700 !important;
+    /* 상단 지수 표 스타일 */
+    .metric-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 20px;
+        text-align: center;
     }
-    div[data-testid="stMetricLabel"] {
-        font-size: 0.85rem !important; 
-        font-weight: 500 !important;
-        margin-bottom: 2px;
+    .metric-table th {
+        background-color: #333;
+        padding: 8px;
+        font-size: 0.9rem;
+        color: #ccc;
     }
-    
-    /* 컬럼 간격 조정 */
-    [data-testid="column"] {
-        padding: 0 5px !important;
+    .metric-table td {
+        padding: 12px;
+        font-size: 1.4rem;
+        font-weight: 700;
+        border-bottom: 1px solid #444;
     }
+    .drop-val { color: #ff4b4b; } /* 하락률 강조 색상 */
 
     .compact-table {font-size: 0.85rem !important; line-height: 1.3;}
     .stButton>button {width: 100%; border-radius: 8px; height: 3.5em; background-color: #2e7d32; color: white; font-weight: bold;}
     </style>
     """, unsafe_allow_html=True)
 
-# 2. 앱 화면 타이틀 (크기 축소 적용)
+# 2. 앱 화면 타이틀
 st.markdown('<p class="main-title">📉 퇴직연금 매수 가이드</p>', unsafe_allow_html=True)
 
 # 3. 데이터 가져오기
@@ -58,16 +63,21 @@ def get_market_data():
 
 market = get_market_data()
 
-# 4. 시장 지표 (완전한 가로 3열 배치)
-c1, c2, c3 = st.columns(3)
-with c1:
-    st.metric("VIX 지수", f"{market['VIX']['current']:.1f}")
-with c2:
-    st.metric("S&P 500", f"{int(market['S&P500']['current']):,}", f"{market['S&P500']['drop']:.1f}%")
-with c3:
-    st.metric("Nasdaq 100", f"{int(market['Nasdaq100']['current']):,}", f"{market['Nasdaq100']['drop']:.1f}%")
-
-st.markdown("<br>", unsafe_allow_html=True)
+# 4. 시장 지표 (표 형태로 커스텀)
+st.markdown(f"""
+<table class="metric-table">
+    <tr>
+        <th>VIX 지수</th>
+        <th>S&P 500 하락률</th>
+        <th>Nasdaq 100 하락률</th>
+    </tr>
+    <tr>
+        <td>{market['VIX']['current']:.2f}</td>
+        <td class="drop-val">{market['S&P500']['drop']:.1f}%</td>
+        <td class="drop-val">{market['Nasdaq100']['drop']:.1f}%</td>
+    </tr>
+</table>
+""", unsafe_allow_html=True)
 
 # 5. 설정부 (예산 2.49억)
 with st.expander("⚙️ 기본 설정 및 전체 예산", expanded=False):
