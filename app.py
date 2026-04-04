@@ -104,4 +104,20 @@ st.table(pd.DataFrame(buy_data))
 
 # 7. 하단 총액 및 상세 기준표
 final_total = int(base_total * multiplier)
-st.subheader(f"💰 총 입금액: {final_total}만
+st.subheader(f"💰 총 입금액: {final_total}만 원")
+
+with st.expander("ℹ️ 배율 및 비중 변경 기준", expanded=False):
+    st.markdown(f"""
+    <div class="compact-table">
+
+    | 단계 | 배율 | S&P 500 조건 | 비중 전략 |
+    | :--- | :---: | :--- | :--- |
+    | **평시** | 1.0x | 전고점 부근 | 사용자 설정 |
+    | **주의** | 1.2x | -8%↓ (VIX 25↑) | 사용자 설정 |
+    | **공포** | 2.0x | -15%↓ (VIX 30↑) | 나스닥 25% 확대 |
+    | **초공포**| 2.5x | -25%↓ (VIX 45↑) | 나스닥 30% 집중 |
+    | **위기** | 3.0x | -35%↓ (VIX 50↑) | 나스닥 30% 집중 |
+
+    **🚨 특수 대응:** 나스닥 100 하락률이 현재 **{nd_drop:.1f}%**로, **-30%**를 돌파할 경우 나스닥 비중이 **30%**로 즉시 고정됩니다.
+    </div>
+    """, unsafe_allow_html=True)
