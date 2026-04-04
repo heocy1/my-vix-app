@@ -12,6 +12,8 @@ st.markdown("""
     div[data-testid="stMetricValue"] {font-size: 1.0rem !important;}
     div[data-testid="stMetricLabel"] {font-size: 0.75rem !important;}
     .compact-table {font-size: 0.75rem !important; line-height: 1.2;}
+    /* 버튼 스타일 커스텀 */
+    .stButton>button {width: 100%; border-radius: 5px; height: 3em; background-color: #2e7d32; color: white;}
     </style>
     """, unsafe_allow_html=True)
 
@@ -33,21 +35,18 @@ def get_market_data():
 
 market = get_market_data()
 
-# 3. 시장 지표
+# 3. 시장 지표 (가로 3열)
 c1, c2, c3 = st.columns(3, gap="small")
 c1.metric("VIX", f"{market['VIX']['current']:.1f}")
 c2.metric("S&P 500", f"{int(market['S&P500']['current']):,}", f"{market['S&P500']['drop']:.1f}%")
 c3.metric("Nasdaq 100", f"{int(market['Nasdaq100']['current']):,}", f"{market['Nasdaq100']['drop']:.1f}%")
 
-# 4. 설정 및 잔액 관리부
-if 'total_invested' not in st.session_state:
-    st.session_state.total_invested = 0
-
-with st.expander("⚙️ 기본 설정 및 매수 현황", expanded=False):
-    full_budget = st.number_input("전체 투자 예산 (만 원)", value=26000, step=1000) # 예: 2억 6천
+# 4. 설정부 (비중 커스텀)
+with st.expander("⚙️ 기본 설정 및 전체 예산", expanded=False):
+    # 전체 예산 설정 (기본값 2.6억 등 사용자 상황에 맞게 수정 가능)
+    full_budget = st.number_input("전체 투자 예산 (만 원)", value=26000, step=1000)
     base_total = st.number_input("주당 기본 총액 (만 원)", value=500, step=10)
     
-    st.write("---")
     st.write("**평시(1.0x) 기준 비중 설정 (%)**")
     col_w1, col_w2 = st.columns(2)
     with col_w1:
@@ -57,7 +56,7 @@ with st.expander("⚙️ 기본 설정 및 매수 현황", expanded=False):
         u_sp500 = st.number_input("S&P 500", 0, 100, 20)
         u_nasdaq = st.number_input("나스닥 100", 0, 100, 20)
 
-# 5. 배율 및 비중 판단
+# 5. 배율 및 비중 판단 로직
 vix = market['VIX']['current']
 sp_drop = market['S&P500']['drop']
 nd_drop = market['Nasdaq100']['drop']
@@ -84,31 +83,37 @@ if nd_drop <= -30:
 
 getattr(st, status_style)(f"**현재 적용 단계: {status_msg}**")
 
-# 6. 매수 실행 및 계산
-final_weekly_total = int(base_total * multiplier)
-
-col_info, col_btn = st.columns([2, 1])
-with col_info:
-    st.subheader(f"금주 매수액: {final_weekly_total}만 원")
-
-with col_btn:
-    if st.button("✅ 금주 매수 완료"):
-        st.session_state.total_invested += final_weekly_total
-        st.success("기록되었습니다!")
-
-# 잔액 확인 섹션
-remaining = full_budget - st.session_state.total_invested
-c_inv, c_rem = st.columns(2)
-c_inv.metric("누적 매수액", f"{st.session_state.total_invested}만")
-c_rem.metric("남은 예산", f"{remaining}만")
-
-# 7. 상세 내역 표
+# 6. 매수 실행 표
 names = ["SCHD", "TDF 2045", "S&P 500", "나스닥 100"]
 weights = [w_schd, w_tdf, w_sp500, w_nasdaq]
 buy_data = []
 
 for name, weight in zip(names, weights):
-    amt = int(base_total * (weight / 100) * multiplier)
-    buy_data.append({"종목": name, "비중": f"{weight}%", "매수액": f"**{amt}만**"})
+    base_amt = int(base_total * (weight / 100))
+    final_amt = int(base_amt * multiplier)
+    buy_data.append({"종목": name, "비중": f"{weight}%", "매수액": f"**{final_amt}만**"})
 
 st.table(pd.DataFrame(buy_data))
+
+# 7. [신규] 누적 금액 및 잔액 확인 섹션
+st.markdown("---")
+if 'total_invested' not in st.session_state:
+    st.session_state.total_invested = 0
+
+weekly_total = int(base_total * multiplier)
+
+col_summary, col_action = st.columns([2, 1])
+
+with col_summary:
+    st.write(f"💰 **이번 주 총 매수액: {weekly_total}만 원**")
+    remaining = full_budget - st.session_state.total_invested
+    st.write(f"📊 **누적 매수액:** {st.session_state.total_invested}만 / **잔액:** {remaining}만")
+
+with col_action:
+    if st.button("매수 완료 기록"):
+        st.session_state.total_invested += weekly_total
+        st.rerun()
+
+# 진행률 바 표시
+progress = min(st.session_state.total_invested / full_budget, 1.0)
+st.progress(progress)
