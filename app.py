@@ -2,32 +2,18 @@ import streamlit as st
 import yfinance as yf
 import pandas as pd
 
-# 1. 앱 설정 (다크 모드 가독성 보강)
+# 1. 앱 설정
 st.set_page_config(page_title="퇴직연금 매수 가이드", layout="centered")
 
-# CSS: 다크 모드와 라이트 모드 모두에서 글자가 잘 보이도록 설정
+# CSS: 가로 한 줄 배치를 위한 스타일 조정
 st.markdown("""
     <style>
-    /* 메인 컨테이너 여백 조절 */
     .main .block-container {padding-top: 1rem; padding-bottom: 1rem;}
-    
-    /* 제목 크기 및 색상 */
-    h1 {font-size: 1.5rem !important;}
-    
-    /* 메트릭 박스 스타일 (다크모드 대응) */
-    [data-testid="stMetric"] {
-        background-color: rgba(150, 150, 150, 0.1); /* 반투명 배경 */
-        padding: 15px;
-        border-radius: 10px;
-        border: 1px solid rgba(150, 150, 150, 0.2);
-    }
-    
-    /* 메트릭 글자색 강제 설정 (어떤 테마에서도 잘 보이게) */
-    [data-testid="stMetricLabel"] {color: var(--text-color) !important;}
-    [data-testid="stMetricValue"] {color: var(--text-color) !important;}
-    
-    /* 테이블 가독성 보강 */
-    .stTable {font-size: 0.9rem !important;}
+    h1 {font-size: 1.2rem !important; margin-bottom: 0.5rem;}
+    /* 메트릭 간격 및 폰트 크기 최적화 */
+    [data-testid="column"] {text-align: center;}
+    div[data-testid="stMetricValue"] {font-size: 1.1rem !important;}
+    div[data-testid="stMetricLabel"] {font-size: 0.8rem !important;}
     </style>
     """, unsafe_allow_html=True)
 
@@ -49,18 +35,16 @@ def get_market_data():
 
 market = get_market_data()
 
-# 3. 시장 지표 (가독성 높은 배치)
-st.caption("🌐 실시간 시장 지표")
-c1, c2, c3 = st.columns(3)
-c1.metric("VIX (공포)", f"{market['VIX']['current']:.2f}")
-# 하락률(delta)의 색상은 Streamlit이 자동으로 빨강/초록으로 처리합니다.
-c2.metric("S&P 500", f"{int(market['S&P500']['current']):,}", f"{market['S&P500']['drop']:.1f}%", delta_color="inverse")
-c3.metric("Nasdaq 100", f"{int(market['Nasdaq100']['current']):,}", f"{market['Nasdaq100']['drop']:.1f}%", delta_color="inverse")
+# 3. 시장 지표 (가로 한 줄 배치)
+# gap="small"로 설정하여 최대한 붙여서 한 화면에 들어오게 함
+c1, c2, c3 = st.columns(3, gap="small")
+c1.metric("VIX", f"{market['VIX']['current']:.1f}")
+c2.metric("S&P500", f"{int(market['S&P500']['current']):,}", f"{market['S&P500']['drop']:.1f}%")
+c3.metric("Nasdaq100", f"{int(market['Nasdaq100']['current']):,}", f"{market['Nasdaq100']['drop']:.1f}%")
 
 # 4. 비중 및 기본 설정
-with st.expander("⚙️ 투자 비중 및 기본금 설정", expanded=False):
-    base_total = st.number_input("주당 기본 매수 총액 (만 원)", value=500, step=10)
-    st.write("---")
+with st.expander("⚙️ 설정 (비중/기본금)", expanded=False):
+    base_total = st.number_input("주당 기본 총액 (만 원)", value=500, step=10)
     col_a, col_b = st.columns(2)
     with col_a:
         w_schd = st.number_input("SCHD (%)", 0, 100, 30)
@@ -69,48 +53,31 @@ with st.expander("⚙️ 투자 비중 및 기본금 설정", expanded=False):
         w_sp500 = st.number_input("S&P 500 (%)", 0, 100, 20)
         w_nasdaq = st.number_input("나스닥 100 (%)", 0, 100, 20)
     
-    total_w = w_schd + w_tdf + w_sp500 + w_nasdaq
-    if total_w != 100:
-        st.error(f"비중 합계: {total_w}% (100%로 맞춰주세요)")
+    if (w_schd + w_tdf + w_sp500 + w_nasdaq) != 100:
+        st.error("비중 합계를 100%로 맞춰주세요.")
 
-# 5. 배율 판단 로직
-vix = market['VIX']['current']
-sp_drop = market['S&P500']['drop']
-nd_drop = market['Nasdaq100']['drop']
-
+# 5. 배율 판단
+vix, sp_drop, nd_drop = market['VIX']['current'], market['S&P500']['drop'], market['Nasdaq100']['drop']
 multiplier = 1.0
-status_style = "success"
-status_msg = "✅ 1배수 (평시)"
+status_style, status_msg = "success", "✅ 1배수 (평시)"
 
 if vix >= 35 or sp_drop <= -15 or nd_drop <= -20:
-    multiplier = 2.0
-    status_style = "error"
-    status_msg = "🚨 2배수 (초공포)"
+    multiplier, status_style, status_msg = 2.0, "error", "🚨 2배수 (초공포)"
 elif vix >= 30 or sp_drop <= -10 or nd_drop <= -15:
-    multiplier = 1.5
-    status_style = "warning"
-    status_msg = "⚠️ 1.5배수 (공포)"
+    multiplier, status_style, status_msg = 1.5, "warning", "⚠️ 1.5배수 (공포)"
 
-# 상태 알림 (배경색이 있는 박스라 다크모드에서도 잘 보임)
-getattr(st, status_style)(f"**{status_msg} 적용 중 (배율: {multiplier}x)**")
+getattr(st, status_style)(f"**{status_msg} (배율: {multiplier}x)**")
 
-# 6. 매수 금액 계산 및 표 출력
+# 6. 매수 금액 표
 names = ["SCHD", "TDF 2045", "S&P 500", "나스닥 100"]
 weights = [w_schd, w_tdf, w_sp500, w_nasdaq]
-
 buy_data = []
 for name, weight in zip(names, weights):
     base_amt = int(base_total * (weight / 100))
     final_amt = int(base_amt * multiplier)
-    buy_data.append({
-        "종목명": name,
-        "비율": f"{weight}%",
-        "기본가": f"{base_amt}만",
-        "매수액": f"**{final_amt}만**"
-    })
+    buy_data.append({"종목": name, "비율": f"{weight}%", "기본": f"{base_amt}만", "매수액": f"**{final_amt}만**"})
 
 st.table(pd.DataFrame(buy_data))
 
 # 7. 하단 요약
-final_total = int(base_total * multiplier)
-st.subheader(f"💰 총 입금액: {final_total}만 원")
+st.subheader(f"💰 총 입금액: {int(base_total * multiplier)}만 원")
