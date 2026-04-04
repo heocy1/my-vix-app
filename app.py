@@ -9,32 +9,37 @@ st.markdown("""
     <style>
     .main .block-container {padding-top: 1.5rem; padding-bottom: 1rem;}
     
-    /* 제목 크기 대폭 확대 */
+    /* 제목 크기를 적절하게 조절 (이전보다 작게) */
     .main-title {
-        font-size: 2.2rem !important; 
-        font-weight: 800; 
+        font-size: 1.6rem !important; 
+        font-weight: 700; 
         text-align: center; 
-        margin-bottom: 2rem;
+        margin-bottom: 1.5rem;
         color: #ffffff;
     }
     
-    /* 지수 폰트 크기 및 스타일 강화 */
+    /* 지수 폰트 크기 및 스타일 (가로 배치를 위해 최적화) */
     div[data-testid="stMetricValue"] {
-        font-size: 1.6rem !important; 
+        font-size: 1.2rem !important; 
         font-weight: 700 !important;
     }
     div[data-testid="stMetricLabel"] {
-        font-size: 1.0rem !important; 
+        font-size: 0.85rem !important; 
         font-weight: 500 !important;
-        margin-bottom: 5px;
+        margin-bottom: 2px;
     }
     
+    /* 컬럼 간격 조정 */
+    [data-testid="column"] {
+        padding: 0 5px !important;
+    }
+
     .compact-table {font-size: 0.85rem !important; line-height: 1.3;}
     .stButton>button {width: 100%; border-radius: 8px; height: 3.5em; background-color: #2e7d32; color: white; font-weight: bold;}
     </style>
     """, unsafe_allow_html=True)
 
-# 2. 앱 화면 타이틀 (커스텀 클래스 적용)
+# 2. 앱 화면 타이틀 (크기 축소 적용)
 st.markdown('<p class="main-title">📉 퇴직연금 매수 가이드</p>', unsafe_allow_html=True)
 
 # 3. 데이터 가져오기
@@ -53,11 +58,14 @@ def get_market_data():
 
 market = get_market_data()
 
-# 4. 시장 지표 (크기 확대 적용)
-c1, c2, c3 = st.columns(3, gap="medium")
-c1.metric("VIX 지수", f"{market['VIX']['current']:.1f}")
-c2.metric("S&P 500", f"{int(market['S&P500']['current']):,}", f"{market['S&P500']['drop']:.1f}%")
-c3.metric("Nasdaq 100", f"{int(market['Nasdaq100']['current']):,}", f"{market['Nasdaq100']['drop']:.1f}%")
+# 4. 시장 지표 (완전한 가로 3열 배치)
+c1, c2, c3 = st.columns(3)
+with c1:
+    st.metric("VIX 지수", f"{market['VIX']['current']:.1f}")
+with c2:
+    st.metric("S&P 500", f"{int(market['S&P500']['current']):,}", f"{market['S&P500']['drop']:.1f}%")
+with c3:
+    st.metric("Nasdaq 100", f"{int(market['Nasdaq100']['current']):,}", f"{market['Nasdaq100']['drop']:.1f}%")
 
 st.markdown("<br>", unsafe_allow_html=True)
 
