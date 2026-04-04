@@ -49,11 +49,11 @@ with st.expander("⚙️ 설정 (비중/기본금)", expanded=False):
         w_sp500 = st.number_input("S&P 500 (%)", 0, 100, 20)
         w_nasdaq = st.number_input("나스닥 100 (%)", 0, 100, 20)
 
-# 5. 배율 판단 (이미지 제안 기준 반영)
+# 5. 배율 판단 (수정된 기준 반영)
 vix = market['VIX']['current']
 sp_drop = market['S&P500']['drop']
 nd_drop = market['Nasdaq100']['drop']
-max_drop = min(sp_drop, nd_drop) # 둘 중 더 많이 떨어진 지수 기준
+max_drop = min(sp_drop, nd_drop)
 
 multiplier = 1.0
 status_style, status_msg = "success", "✅ 1.0x (평시)"
@@ -61,7 +61,7 @@ status_style, status_msg = "success", "✅ 1.0x (평시)"
 if vix >= 40 or max_drop <= -20:
     multiplier, status_style, status_msg = 2.5, "error", "🚨 2.5x (초공포)"
 elif vix >= 30 or max_drop <= -10:
-    multiplier, status_style, status_msg = 1.7, "error", "🔥 1.7x (공포)"
+    multiplier, status_style, status_msg = 2.0, "error", "🔥 2.0x (공포)" # 1.7x -> 2.0x 수정
 elif vix >= 25 or max_drop <= -5:
     multiplier, status_style, status_msg = 1.2, "warning", "⚠️ 1.2x (주의)"
 
@@ -93,6 +93,6 @@ with st.expander("ℹ️ 배율 설정 기준 보기"):
     | :--- | :--- | :--- | :--- |
     | **평시** | **1.0x** | 기본 적립 단계 | 지수 전고점 부근 |
     | **주의** | **1.2x** | VIX 25↑ / 고점대비 -5%↓ | 공포의 시작, '줍줍' 개시 |
-    | **공포** | **1.7x** | VIX 30↑ / 고점대비 -10%↓ | 비중 확대, 위기 속 기회 |
+    | **공포** | **2.0x** | VIX 30↑ / 고점대비 -10%↓ | 비중 대폭 확대, 위기 속 기회 |
     | **초공포** | **2.5x** | VIX 40↑ / 고점대비 -20%↓ | 역사적 저점, 과감한 풀매수 |
     """)
