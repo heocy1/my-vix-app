@@ -2,8 +2,8 @@ import streamlit as st
 import yfinance as yf
 import pandas as pd
 
-# 1. 앱 설정
-st.set_page_config(page_title="퇴직연금 인내심 매수기", layout="centered")
+# 1. 앱 설정 (브라우저 탭 이름에서 '인내심' 제거)
+st.set_page_config(page_title="퇴직연금 매수기", layout="centered")
 
 st.markdown("""
     <style>
@@ -16,9 +16,10 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-st.title("📉 퇴직연금 인내심 매수 가이드")
+# 2. 앱 화면 타이틀 수정
+st.title("📉 퇴직연금 매수 가이드")
 
-# 2. 데이터 가져오기
+# 3. 데이터 가져오기
 @st.cache_data(ttl=3600)
 def get_market_data():
     tickers = {"VIX": "^VIX", "S&P500": "^GSPC", "Nasdaq100": "^NDX"}
@@ -34,15 +35,15 @@ def get_market_data():
 
 market = get_market_data()
 
-# 3. 시장 지표 (가로 3열)
+# 4. 시장 지표 (가로 3열)
 c1, c2, c3 = st.columns(3, gap="small")
 c1.metric("VIX", f"{market['VIX']['current']:.1f}")
 c2.metric("S&P 500", f"{int(market['S&P500']['current']):,}", f"{market['S&P500']['drop']:.1f}%")
 c3.metric("Nasdaq 100", f"{int(market['Nasdaq100']['current']):,}", f"{market['Nasdaq100']['drop']:.1f}%")
 
-# 4. 설정부 (예산 2.49억 반영)
+# 5. 설정부 (예산 2.49억 고정)
 with st.expander("⚙️ 기본 설정 및 전체 예산", expanded=False):
-    full_budget = st.number_input("전체 투자 예산 (만 원)", value=24900, step=100) # 2.49억 반영
+    full_budget = st.number_input("전체 투자 예산 (만 원)", value=24900, step=100) 
     base_total = st.number_input("주당 기본 총액 (만 원)", value=500, step=10)
     
     st.write("**평시(1.0x) 기준 비중 설정 (%)**")
@@ -54,7 +55,7 @@ with st.expander("⚙️ 기본 설정 및 전체 예산", expanded=False):
         u_sp500 = st.number_input("S&P 500", 0, 100, 20)
         u_nasdaq = st.number_input("나스닥 100", 0, 100, 20)
 
-# 5. 배율 및 비중 판단 로직 (이미지 보정안 기준 데이터 입력)
+# 6. 배율 및 비중 판단 로직 (이미지 보정안 기준)
 vix = market['VIX']['current']
 sp_drop = market['S&P500']['drop']
 nd_drop = market['Nasdaq100']['drop']
@@ -63,7 +64,7 @@ w_schd, w_tdf, w_sp500, w_nasdaq = u_schd, u_tdf, u_sp500, u_nasdaq
 multiplier = 1.0
 status_style, status_msg = "success", "✅ 1.0x (평시)"
 
-# 보정안 엄격 기준 적용
+# 보정안 엄격 기준 (S&P 500 및 VIX 혼합)
 if vix >= 45 or sp_drop <= -25:
     multiplier, status_style, status_msg = 2.5, "error", "🚨 2.5x (초공포)"
     w_schd, w_nasdaq = 20, 30
@@ -80,7 +81,7 @@ if nd_drop <= -30:
 
 getattr(st, status_style)(f"**현재 적용 단계: {status_msg}**")
 
-# 6. 매수 실행 표
+# 7. 매수 실행 표
 names = ["SCHD", "TDF 2045", "S&P 500", "나스닥 100"]
 weights = [w_schd, w_tdf, w_sp500, w_nasdaq]
 buy_data = []
@@ -92,7 +93,7 @@ for name, weight in zip(names, weights):
 
 st.table(pd.DataFrame(buy_data))
 
-# 7. 누적 금액 및 잔액 확인
+# 8. 누적 금액 및 잔액 확인
 st.markdown("---")
 if 'total_invested' not in st.session_state:
     st.session_state.total_invested = 0
@@ -112,8 +113,8 @@ with col_action:
 
 st.progress(min(st.session_state.total_invested / full_budget, 1.0))
 
-# 8. 상세 기준표 (이미지 내용 반영)
-with st.expander("ℹ️ 보정안 상세 기준 (인내심 가이드)", expanded=False):
+# 9. 상세 기준표
+with st.expander("ℹ️ 보정안 상세 기준", expanded=False):
     st.markdown(f"""
     <div class="compact-table">
 
