@@ -68,17 +68,3 @@ total_buy = df['이번 주 매수액(만)'].sum()
 st.metric("💰 이번 주 총 매수 합계", f"{total_buy}만 원")
 
 st.info(f"💡 설정 기준: 주간 기본 500만 원 | 현재 배율: {multiplier}배")
-    "종목": ["SCHD (30%)", "TDF 2045 (30%)", "S&P 500 (20%)", "나스닥 100 (20%)"],
-    "기본 금액(만)": [143, 143, 96, 96]  # 합계 478만 원 (단위: 만 원)
-}
-
-df = pd.DataFrame(base_data)
-df['이번 주 매수액(만)'] = (df['기본 금액(만)'] * multiplier).astype(int)
-
-# 5. 결과 출력
-st.table(df)
-
-total_buy = df['이번 주 매수액(만)'].sum()
-st.metric("💰 이번 주 총 매수 합계", f"{total_buy}만 원")
-
-st.info(f"💡 현재 설정 총액: 2억 4,900만 원 | 매수 배율: {multiplier}배")
