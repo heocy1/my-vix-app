@@ -12,7 +12,6 @@ st.markdown("""
     div[data-testid="stMetricValue"] {font-size: 1.0rem !important;}
     div[data-testid="stMetricLabel"] {font-size: 0.75rem !important;}
     .compact-table {font-size: 0.75rem !important; line-height: 1.2;}
-    /* 버튼 스타일 커스텀 */
     .stButton>button {width: 100%; border-radius: 5px; height: 3em; background-color: #2e7d32; color: white;}
     </style>
     """, unsafe_allow_html=True)
@@ -41,10 +40,9 @@ c1.metric("VIX", f"{market['VIX']['current']:.1f}")
 c2.metric("S&P 500", f"{int(market['S&P500']['current']):,}", f"{market['S&P500']['drop']:.1f}%")
 c3.metric("Nasdaq 100", f"{int(market['Nasdaq100']['current']):,}", f"{market['Nasdaq100']['drop']:.1f}%")
 
-# 4. 설정부 (비중 커스텀)
+# 4. 설정부 (예산 2.49억 반영)
 with st.expander("⚙️ 기본 설정 및 전체 예산", expanded=False):
-    # 전체 예산 설정 (기본값 2.6억 등 사용자 상황에 맞게 수정 가능)
-    full_budget = st.number_input("전체 투자 예산 (만 원)", value=26000, step=1000)
+    full_budget = st.number_input("전체 투자 예산 (만 원)", value=24900, step=100) # 2.49억 반영
     base_total = st.number_input("주당 기본 총액 (만 원)", value=500, step=10)
     
     st.write("**평시(1.0x) 기준 비중 설정 (%)**")
@@ -56,7 +54,7 @@ with st.expander("⚙️ 기본 설정 및 전체 예산", expanded=False):
         u_sp500 = st.number_input("S&P 500", 0, 100, 20)
         u_nasdaq = st.number_input("나스닥 100", 0, 100, 20)
 
-# 5. 배율 및 비중 판단 로직
+# 5. 배율 및 비중 판단 로직 (이미지 보정안 기준 데이터 입력)
 vix = market['VIX']['current']
 sp_drop = market['S&P500']['drop']
 nd_drop = market['Nasdaq100']['drop']
@@ -65,10 +63,8 @@ w_schd, w_tdf, w_sp500, w_nasdaq = u_schd, u_tdf, u_sp500, u_nasdaq
 multiplier = 1.0
 status_style, status_msg = "success", "✅ 1.0x (평시)"
 
-if vix >= 50 or sp_drop <= -35:
-    multiplier, status_style, status_msg = 3.0, "error", "💀 3.0x (위기)"
-    w_schd, w_nasdaq = 20, 30
-elif vix >= 45 or sp_drop <= -25:
+# 보정안 엄격 기준 적용
+if vix >= 45 or sp_drop <= -25:
     multiplier, status_style, status_msg = 2.5, "error", "🚨 2.5x (초공포)"
     w_schd, w_nasdaq = 20, 30
 elif vix >= 30 or sp_drop <= -15:
@@ -77,6 +73,7 @@ elif vix >= 30 or sp_drop <= -15:
 elif vix >= 25 or sp_drop <= -8:
     multiplier, status_style, status_msg = 1.2, "warning", "⚠️ 1.2x (주의)"
 
+# 나스닥 -30% 폭락 특수 조건
 if nd_drop <= -30:
     w_schd, w_nasdaq = 20, 30
     status_msg += " (QQQ 대응 ON)"
@@ -95,25 +92,38 @@ for name, weight in zip(names, weights):
 
 st.table(pd.DataFrame(buy_data))
 
-# 7. [신규] 누적 금액 및 잔액 확인 섹션
+# 7. 누적 금액 및 잔액 확인
 st.markdown("---")
 if 'total_invested' not in st.session_state:
     st.session_state.total_invested = 0
 
 weekly_total = int(base_total * multiplier)
-
 col_summary, col_action = st.columns([2, 1])
 
 with col_summary:
     st.write(f"💰 **이번 주 총 매수액: {weekly_total}만 원**")
     remaining = full_budget - st.session_state.total_invested
-    st.write(f"📊 **누적 매수액:** {st.session_state.total_invested}만 / **잔액:** {remaining}만")
+    st.write(f"📊 **누적:** {st.session_state.total_invested}만 / **잔액:** {remaining}만")
 
 with col_action:
     if st.button("매수 완료 기록"):
         st.session_state.total_invested += weekly_total
         st.rerun()
 
-# 진행률 바 표시
-progress = min(st.session_state.total_invested / full_budget, 1.0)
-st.progress(progress)
+st.progress(min(st.session_state.total_invested / full_budget, 1.0))
+
+# 8. 상세 기준표 (이미지 내용 반영)
+with st.expander("ℹ️ 보정안 상세 기준 (인내심 가이드)", expanded=False):
+    st.markdown(f"""
+    <div class="compact-table">
+
+    | 단계 | 배율 | 조건 (하나라도 해당 시) | 비중 전략 |
+    | :--- | :---: | :--- | :--- |
+    | **평시** | 1.0x | 기본 적립 단계 | 사용자 설정 |
+    | **주의** | 1.2x | VIX 25↑ 또는 S&P500 -8%↓ | 사용자 설정 |
+    | **공포** | 2.0x | VIX 30↑ 또는 S&P500 -15%↓ | 나스닥 25% 확대 |
+    | **초공포**| 2.5x | VIX 45↑ 또는 S&P500 -25%↓ | 나스닥 30% 집중 |
+
+    **※ 특수 규칙:** 나스닥 100이 **-30%** 돌파 시 무조건 나스닥 비중 **30%** 고정.
+    </div>
+    """, unsafe_allow_html=True)
