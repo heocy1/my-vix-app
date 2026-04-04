@@ -39,28 +39,30 @@ c1.metric("VIX", f"{market['VIX']['current']:.1f}")
 c2.metric("S&P 500", f"{int(market['S&P500']['current']):,}", f"{market['S&P500']['drop']:.1f}%")
 c3.metric("Nasdaq 100", f"{int(market['Nasdaq100']['current']):,}", f"{market['Nasdaq100']['drop']:.1f}%")
 
-# 4. 설정부 (기본값 설정)
+# 4. 설정부
 with st.expander("⚙️ 기본 설정 (평시 기준)", expanded=False):
     base_total = st.number_input("주당 기본 총액 (만 원)", value=500, step=10)
-    st.caption("※ 공포/초공포 단계 진입 시 설정된 비중으로 자동 전환됩니다.")
 
-# 5. 배율 판단 및 비중 자동 결정 로직
+# 5. 배율 및 비중 판단 로직 (이미지 가이드 + 신규 3배 조건)
 vix = market['VIX']['current']
 sp_drop = market['S&P500']['drop']
 
-# 기본 비중 (평시/주의)
+# 기본 비중 초기화 (평시)
 w_schd, w_tdf, w_sp500, w_nasdaq = 30, 30, 20, 20
 multiplier = 1.0
 status_style, status_msg = "success", "✅ 1.0x (평시)"
 
-# 조건 판단 및 비중 변경
-if vix >= 40 or sp_drop <= -20:
+# 조건 판단 (엄격한 기준 적용)
+if vix >= 50 or sp_drop <= -35:
+    multiplier, status_style, status_msg = 3.0, "error", "💀 3.0x (대공황급)"
+    w_schd, w_nasdaq = 20, 30
+elif vix >= 45 or sp_drop <= -25:
     multiplier, status_style, status_msg = 2.5, "error", "🚨 2.5x (초공포)"
-    w_schd, w_nasdaq = 20, 30  # 요청 사항 반영
-elif vix >= 30 or sp_drop <= -10:
+    w_schd, w_nasdaq = 20, 30
+elif vix >= 30 or sp_drop <= -15:
     multiplier, status_style, status_msg = 2.0, "error", "🔥 2.0x (공포)"
-    w_schd, w_nasdaq = 25, 25  # 요청 사항 반영
-elif vix >= 25 or sp_drop <= -5:
+    w_schd, w_nasdaq = 25, 25
+elif vix >= 25 or sp_drop <= -8:
     multiplier, status_style, status_msg = 1.2, "warning", "⚠️ 1.2x (주의)"
 
 getattr(st, status_style)(f"**현재 적용 단계: {status_msg}**")
@@ -71,32 +73,31 @@ weights = [w_schd, w_tdf, w_sp500, w_nasdaq]
 buy_data = []
 
 for name, weight in zip(names, weights):
-    # 각 단계별 비중을 적용한 1배수 기준 금액 계산
     base_amt = int(base_total * (weight / 100))
-    # 배율 적용 최종 금액
     final_amt = int(base_amt * multiplier)
     buy_data.append({
         "종목": name,
         "비중": f"{weight}%",
-        "금액": f"**{final_amt}만 원**"
+        "매수액": f"**{final_amt}만**"
     })
 
 st.table(pd.DataFrame(buy_data))
 
-# 7. 하단 요약
+# 7. 하단 요약 및 기준표
 final_total = int(base_total * multiplier)
 st.subheader(f"💰 총 입금액: {final_total}만 원")
 
-with st.expander("ℹ️ 단계별 비중/배율 기준", expanded=False):
+with st.expander("ℹ️ 배율 및 비중 변경 기준 (S&P 500)", expanded=False):
     st.markdown("""
     <div class="compact-table">
 
-    | 단계 | 배율 | S&P 500 조건 | SCHD : 나스닥 비중 |
+    | 단계 | 배율 | S&P 500 조건 | 비중 (SCHD:나스닥) |
     | :--- | :---: | :--- | :--- |
     | **평시** | **1.0x** | 전고점 부근 | 30% : 20% |
-    | **주의** | **1.2x** | -5%↓ (VIX 25↑) | 30% : 20% |
-    | **공포** | **2.0x** | -10%↓ (VIX 30↑) | **25% : 25%** |
-    | **초공포**| **2.5x** | -20%↓ (VIX 40↑) | **20% : 30%** |
+    | **주의** | **1.2x** | -8%↓ (VIX 25↑) | 30% : 20% |
+    | **공포** | **2.0x** | -15%↓ (VIX 30↑) | 25% : 25% |
+    | **초공포**| **2.5x** | -25%↓ (VIX 45↑) | 20% : 30% |
+    | **위기** | **3.0x** | -35%↓ (VIX 50↑) | 20% : 30% |
 
     </div>
     """, unsafe_allow_html=True)
