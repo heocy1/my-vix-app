@@ -2,14 +2,32 @@ import streamlit as st
 import yfinance as yf
 import pandas as pd
 
-# 1. 앱 설정 (최대한 컴팩트하게)
+# 1. 앱 설정 (다크 모드 가독성 보강)
 st.set_page_config(page_title="퇴직연금 매수 가이드", layout="centered")
+
+# CSS: 다크 모드와 라이트 모드 모두에서 글자가 잘 보이도록 설정
 st.markdown("""
     <style>
-    .main {background-color: #f8f9fa;}
+    /* 메인 컨테이너 여백 조절 */
     .main .block-container {padding-top: 1rem; padding-bottom: 1rem;}
-    h1 {font-size: 1.5rem !important; color: #1e1e1e;}
-    .stMetric {background-color: #ffffff; padding: 15px; border-radius: 10px; border: 1px solid #e0e0e0;}
+    
+    /* 제목 크기 및 색상 */
+    h1 {font-size: 1.5rem !important;}
+    
+    /* 메트릭 박스 스타일 (다크모드 대응) */
+    [data-testid="stMetric"] {
+        background-color: rgba(150, 150, 150, 0.1); /* 반투명 배경 */
+        padding: 15px;
+        border-radius: 10px;
+        border: 1px solid rgba(150, 150, 150, 0.2);
+    }
+    
+    /* 메트릭 글자색 강제 설정 (어떤 테마에서도 잘 보이게) */
+    [data-testid="stMetricLabel"] {color: var(--text-color) !important;}
+    [data-testid="stMetricValue"] {color: var(--text-color) !important;}
+    
+    /* 테이블 가독성 보강 */
+    .stTable {font-size: 0.9rem !important;}
     </style>
     """, unsafe_allow_html=True)
 
@@ -31,12 +49,13 @@ def get_market_data():
 
 market = get_market_data()
 
-# 3. 시장 지표 (현재가 및 하락률 표시)
+# 3. 시장 지표 (가독성 높은 배치)
 st.caption("🌐 실시간 시장 지표")
 c1, c2, c3 = st.columns(3)
 c1.metric("VIX (공포)", f"{market['VIX']['current']:.2f}")
-c2.metric("S&P 500", f"{int(market['S&P500']['current']):,}", f"{market['S&P500']['drop']:.1f}%")
-c3.metric("Nasdaq 100", f"{int(market['Nasdaq100']['current']):,}", f"{market['Nasdaq100']['drop']:.1f}%")
+# 하락률(delta)의 색상은 Streamlit이 자동으로 빨강/초록으로 처리합니다.
+c2.metric("S&P 500", f"{int(market['S&P500']['current']):,}", f"{market['S&P500']['drop']:.1f}%", delta_color="inverse")
+c3.metric("Nasdaq 100", f"{int(market['Nasdaq100']['current']):,}", f"{market['Nasdaq100']['drop']:.1f}%", delta_color="inverse")
 
 # 4. 비중 및 기본 설정
 with st.expander("⚙️ 투자 비중 및 기본금 설정", expanded=False):
@@ -61,18 +80,18 @@ nd_drop = market['Nasdaq100']['drop']
 
 multiplier = 1.0
 status_style = "success"
-status_msg = "✅ 1배수 (평시 적립)"
+status_msg = "✅ 1배수 (평시)"
 
 if vix >= 35 or sp_drop <= -15 or nd_drop <= -20:
     multiplier = 2.0
     status_style = "error"
-    status_msg = "🚨 2배수 (초공포 단계)"
+    status_msg = "🚨 2배수 (초공포)"
 elif vix >= 30 or sp_drop <= -10 or nd_drop <= -15:
     multiplier = 1.5
     status_style = "warning"
-    status_msg = "⚠️ 1.5배수 (공포 단계)"
+    status_msg = "⚠️ 1.5배수 (공포)"
 
-# 상태 알림
+# 상태 알림 (배경색이 있는 박스라 다크모드에서도 잘 보임)
 getattr(st, status_style)(f"**{status_msg} 적용 중 (배율: {multiplier}x)**")
 
 # 6. 매수 금액 계산 및 표 출력
@@ -87,7 +106,7 @@ for name, weight in zip(names, weights):
         "종목명": name,
         "비율": f"{weight}%",
         "기본가": f"{base_amt}만",
-        "이번주 매수액": f"**{final_amt}만**"
+        "매수액": f"**{final_amt}만**"
     })
 
 st.table(pd.DataFrame(buy_data))
