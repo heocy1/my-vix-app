@@ -39,8 +39,8 @@ c1.metric("VIX", f"{market['VIX']['current']:.1f}")
 c2.metric("S&P 500", f"{int(market['S&P500']['current']):,}", f"{market['S&P500']['drop']:.1f}%")
 c3.metric("Nasdaq 100", f"{int(market['Nasdaq100']['current']):,}", f"{market['Nasdaq100']['drop']:.1f}%")
 
-# 4. 설정부 (종목별 비중 조정 기능 추가)
-with st.expander("⚙️ 기본 설정 (평시 비중 직접 수정)", expanded=False):
+# 4. 설정부 (비중 커스텀)
+with st.expander("⚙️ 기본 설정 (평시 비중 수정)", expanded=False):
     base_total = st.number_input("주당 기본 총액 (만 원)", value=500, step=10)
     
     st.write("**평시(1.0x) 기준 비중 설정 (%)**")
@@ -52,25 +52,23 @@ with st.expander("⚙️ 기본 설정 (평시 비중 직접 수정)", expanded=
         u_sp500 = st.number_input("S&P 500", 0, 100, 20)
         u_nasdaq = st.number_input("나스닥 100", 0, 100, 20)
     
-    total_w = u_schd + u_tdf + u_sp500 + u_nasdaq
-    if total_w != 100:
-        st.error(f"비중 합계가 {total_w}%입니다. 100%로 맞춰주세요!")
-    st.caption("※ 하락장 진입 시 나스닥 비중이 자동으로 강화되도록 설계되어 있습니다.")
+    if (u_schd + u_tdf + u_sp500 + u_nasdaq) != 100:
+        st.error("비중 합계가 100%가 아닙니다!")
 
 # 5. 배율 및 비중 판단 로직
 vix = market['VIX']['current']
 sp_drop = market['S&P500']['drop']
 nd_drop = market['Nasdaq100']['drop']
 
-# 기본 비중은 사용자가 입력한 값으로 시작
+# 기본 비중 적용
 w_schd, w_tdf, w_sp500, w_nasdaq = u_schd, u_tdf, u_sp500, u_nasdaq
 multiplier = 1.0
 status_style, status_msg = "success", "✅ 1.0x (평시)"
 
-# 단계별 조건 판단 및 자동 비중 조정
+# 단계별 조건 판단 (S&P 500/VIX 기준)
 if vix >= 50 or sp_drop <= -35:
-    multiplier, status_style, status_msg = 3.0, "error", "💀 3.0x (대공황급)"
-    w_schd, w_nasdaq = 20, 30 # 초폭락 시 기술주 집중
+    multiplier, status_style, status_msg = 3.0, "error", "💀 3.0x (위기)"
+    w_schd, w_nasdaq = 20, 30
 elif vix >= 45 or sp_drop <= -25:
     multiplier, status_style, status_msg = 2.5, "error", "🚨 2.5x (초공포)"
     w_schd, w_nasdaq = 20, 30
@@ -80,10 +78,11 @@ elif vix >= 30 or sp_drop <= -15:
 elif vix >= 25 or sp_drop <= -8:
     multiplier, status_style, status_msg = 1.2, "warning", "⚠️ 1.2x (주의)"
 
-# 나스닥 -30% 특수 대응
+# [핵심 로직 추가] 나스닥 100이 -30% 이하로 폭락했을 때의 비중 강제 고정
 if nd_drop <= -30:
-    w_schd, w_nasdaq = 20, 30
-    status_msg += " (QQQ 대응)"
+    w_schd = 20
+    w_nasdaq = 30
+    status_msg += " (QQQ 폭락 대응 ON)"
 
 getattr(st, status_style)(f"**현재 적용 단계: {status_msg}**")
 
@@ -103,20 +102,6 @@ for name, weight in zip(names, weights):
 
 st.table(pd.DataFrame(buy_data))
 
-# 7. 하단 총액
-st.subheader(f"💰 총 입금액: {int(base_total * multiplier)}만 원")
-
-with st.expander("ℹ️ 상세 배율 및 비중 기준", expanded=False):
-    st.markdown("""
-    <div class="compact-table">
-
-    | 단계 | 배율 | S&P 500 조건 | 비중 전략 |
-    | :--- | :---: | :--- | :--- |
-    | **평시** | **1.0x** | 전고점 부근 | 사용자 설정 비중 |
-    | **주의** | **1.2x** | -8%↓ (VIX 25↑) | 사용자 설정 비중 |
-    | **공포** | **2.0x** | -15%↓ (VIX 30↑) | 나스닥 비중 강화 (25%) |
-    | **초공포**| **2.5x** | -25%↓ (VIX 45↑) | 나스닥 집중 매수 (30%) |
-    | **위기** | **3.0x** | -35%↓ (VIX 50↑) | 나스닥 집중 매수 (30%) |
-
-    </div>
-    """, unsafe_allow_html=True)
+# 7. 하단 총액 및 상세 기준표
+final_total = int(base_total * multiplier)
+st.subheader(f"💰 총 입금액: {final_total}만
