@@ -46,11 +46,13 @@ st.markdown("""
         font-weight: bold;
         border: none;
     }
-    /* 금주 매수 총액 글씨 크기 조절 */
+    /* 금주 매수 총액 글씨 크기 조절 (중간 크기) */
     .weekly-total-text {
-        font-size: 1.2rem;
-        font-weight: 600;
-        margin-bottom: 0.5rem;
+        font-size: 1.4rem;  /* 기존 1.2rem에서 1.4rem으로 확대 */
+        font-weight: 700;
+        margin-top: 1rem;
+        margin-bottom: 0.8rem;
+        color: #f1f1f1;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -95,7 +97,6 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # --- [로직용 기본값 설정 (UI 표시 전 계산)] ---
-# 세션 상태 등을 사용하지 않고 input 값을 받기 위해 초기 변수 설정
 if 'f_budget' not in st.session_state: st.session_state.f_budget = 24900
 if 'b_total' not in st.session_state: st.session_state.b_total = 500
 if 'u_schd' not in st.session_state: st.session_state.u_schd = 30
@@ -160,29 +161,6 @@ with col_btn:
     st.caption("※ 매주 화요일 14시 자동 갱신")
     st.progress(min(auto_total_invested / st.session_state.f_budget, 1.0))
 
-# 8. 설정 및 예산 관리 (맨 밑으로 이동)
+# 8. 설정 및 예산 관리 (하단 위치)
 with st.expander("⚙️ 기본 설정 및 예산 관리 (비중/금액 수정 가능)", expanded=False):
-    st.session_state.f_budget = st.number_input("전체 투자 예산 (만 원)", value=st.session_state.f_budget, step=100) 
-    st.session_state.b_total = st.number_input("주당 기본 매수액 (만 원)", value=st.session_state.b_total, step=10)
-    
-    st.write("---")
-    st.write("**평시(1.0x) 기준 기본 비중 (%)**")
-    col_w1, col_w2 = st.columns(2)
-    with col_w1:
-        st.session_state.u_schd = st.number_input("SCHD 비중", 0, 100, st.session_state.u_schd)
-        st.session_state.u_tdf = st.number_input("TDF 2045 비중", 0, 100, st.session_state.u_tdf)
-    with col_w2:
-        st.session_state.u_sp500 = st.number_input("S&P 500 비중", 0, 100, st.session_state.u_sp500)
-        st.session_state.u_nasdaq = st.number_input("나스닥 100 비중", 0, 100, st.session_state.u_nasdaq)
-    if st.button("설정값 적용"): st.rerun()
-
-# 9. 전체 비중 및 배율 설정 기준표 (가장 하단)
-with st.expander("📋 전체 비중 및 배율 설정 기준표 확인 (클릭)", expanded=False):
-    rules_data = {
-        "단계": ["평시", "주의", "공포", "초공포", "위기"],
-        "배율": ["1.0x", "1.2x", "2.0x", "2.5x", "3.0x"],
-        "조건 (VIX/하락률)": ["-8% 미만", "VIX 25↑ / S&P -8%↓", "VIX 30↑ / S&P -15%↓", "VIX 45↑ / S&P -25%↓", "VIX 50↑ / S&P -35%↓"],
-        "비중 (SCHD/NDX)": ["30% / 20%", "30% / 20%", "25% / 25%", "20% / 30%", "20% / 30%"]
-    }
-    st.table(pd.DataFrame(rules_data))
-    st.info("💡 나스닥 100 하락률이 -30%를 넘을 경우, 단계와 상관없이 나스닥 비중은 30%로 강제 고정됩니다.")
+    st.session_state.f_budget = st.number_input("전체 투자 예산 (만
