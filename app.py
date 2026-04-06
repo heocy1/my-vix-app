@@ -91,20 +91,12 @@ st.markdown(f"""
 
 # --- [5. 자동 누적 자금 계산 로직] ---
 def calculate_auto_invested(base_total):
-    # 시작일: 2026년 5월 1일 이후 첫 화요일인 5월 5일 14:00
     start_date = datetime(2026, 5, 5, 14, 0, 0)
     now = datetime.now()
-    
     if now < start_date:
         return 0
-    
-    # 시작일부터 현재까지 경과한 시간 계산
     diff = now - start_date
-    # 경과한 주(week) 수 계산 (1주 = 604800초)
-    # 현재 시점이 화요일 14시를 지났다면 해당 주차를 포함하도록 계산
     weeks_passed = (diff.total_seconds() // (7 * 24 * 3600)) + 1
-    
-    # 총 누적액 = 경과 주수 * 주당 기본 매수액
     return int(weeks_passed * base_total)
 
 # 기본값 설정
@@ -139,7 +131,17 @@ if nd_drop <= -30:
 
 getattr(st, status_style)(f"**현재 시장 단계: {status_msg}**")
 
+# --- [신규 추가: 현재 적용된 세팅값 테이블] ---
+st.subheader("⚙️ 현재 적용된 세팅값")
+setting_data = {
+    "항목": ["적용 배율", "SCHD 비중", "TDF 2045 비중", "S&P 500 비중", "나스닥 100 비중"],
+    "수치": [f"{multiplier}x", f"{w_schd}%", f"{w_tdf}%", f"{w_sp500}%", f"{w_nasdaq}%"],
+    "상태": [status_msg, "보정안 적용됨" if w_schd != u_schd_val else "기본값", "고정", "고정", "보정안 적용됨" if w_nasdaq != u_nasdaq_val else "기본값"]
+}
+st.table(pd.DataFrame(setting_data))
+
 # 7. 이번 주 매수 실행 테이블
+st.subheader("💰 금주 종목별 매수액")
 names = ["SCHD", "TDF 2045", "S&P 500", "나스닥 100"]
 weights = [w_schd, w_tdf, w_sp500, w_nasdaq]
 buy_list = []
@@ -156,14 +158,13 @@ for name, weight in zip(names, weights):
 
 st.table(pd.DataFrame(buy_list))
 
-# 8. 자산 관리 대시보드
+# 8. 자산 관리 대시보드 (기존 유지)
 st.markdown("---")
 weekly_total = int(base_total_val * multiplier)
 col_info, col_btn = st.columns([1.8, 1.2])
 
 with col_info:
     st.markdown(f"#### 💰 이번 주 총액: **{weekly_total}만**")
-    # 자동 계산된 누적액 사용
     remaining = full_budget_val - auto_total_invested
     st.write(f"📅 **매수 시작일:** 2026-05-05 (화) 14:00")
     st.write(f"📊 **자동 누적:** {auto_total_invested}만 / **잔액:** {remaining}만")
@@ -177,7 +178,6 @@ st.progress(min(auto_total_invested / full_budget_val, 1.0))
 # 5. 설정 및 예산 관리 섹션
 with st.expander("⚙️ 기본 설정 및 전체 예산 관리", expanded=False):
     st.info("기본 매수액 수정 시 자동 누적 계산 기준이 변경됩니다.")
-    # 실제 반영을 위해선 세션 스테이트 처리가 필요하지만, 요청하신 '자동' 기능 위주로 구성함
     full_budget_val = st.number_input("전체 투자 예산 (만 원)", value=24900, step=100) 
     base_total_val = st.number_input("주당 기본 매수액 (만 원)", value=500, step=10)
     
@@ -190,5 +190,3 @@ with st.expander("⚙️ 기본 설정 및 전체 예산 관리", expanded=False
     with col_w2:
         u_sp500_val = st.number_input("S&P 500", 0, 100, 20)
         u_nasdaq_val = st.number_input("나스닥 100", 0, 100, 20)
-
-# 9. 보정안 상세 기준 가이드 (생략 가능)
