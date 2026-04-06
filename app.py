@@ -37,7 +37,6 @@ st.markdown("""
         border-bottom: 1px solid #444;
     }
     .drop-val { color: #ff4b4b; }
-    .compact-table {font-size: 0.85rem !important; line-height: 1.3;}
     .stButton>button {
         width: 100%; 
         border-radius: 8px; 
@@ -70,7 +69,7 @@ def get_market_data():
 try:
     market = get_market_data()
 except:
-    st.error("데이터를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.")
+    st.error("데이터를 불러오지 못했습니다.")
     st.stop()
 
 # 4. 상단 지수 현황
@@ -99,7 +98,7 @@ def calculate_auto_invested(base_total):
     weeks_passed = (diff.total_seconds() // (7 * 24 * 3600)) + 1
     return int(weeks_passed * base_total)
 
-# 기본값 설정
+# 기본 설정값
 full_budget_val = 24900
 base_total_val = 500
 u_schd_val, u_tdf_val, u_sp500_val, u_nasdaq_val = 30, 30, 20, 20
@@ -114,14 +113,11 @@ status_style, status_msg = "success", "✅ 1.0x (평시)"
 w_schd, w_tdf, w_sp500, w_nasdaq = u_schd_val, u_tdf_val, u_sp500_val, u_nasdaq_val
 
 if vix >= 50 or sp_drop <= -35:
-    multiplier, status_style, status_msg = 3.0, "error", "💀 3.0x (위기)"
-    w_schd, w_nasdaq = 20, 30
+    multiplier, status_style, status_msg = 3.0, "error", "💀 3.0x (위기)"; w_schd, w_nasdaq = 20, 30
 elif vix >= 45 or sp_drop <= -25:
-    multiplier, status_style, status_msg = 2.5, "error", "🚨 2.5x (초공포)"
-    w_schd, w_nasdaq = 20, 30
+    multiplier, status_style, status_msg = 2.5, "error", "🚨 2.5x (초공포)"; w_schd, w_nasdaq = 20, 30
 elif vix >= 30 or sp_drop <= -15:
-    multiplier, status_style, status_msg = 2.0, "error", "🔥 2.0x (공포)"
-    w_schd, w_nasdaq = 25, 25
+    multiplier, status_style, status_msg = 2.0, "error", "🔥 2.0x (공포)"; w_schd, w_nasdaq = 25, 25
 elif vix >= 25 or sp_drop <= -8:
     multiplier, status_style, status_msg = 1.2, "warning", "⚠️ 1.2x (주의)"
 
@@ -131,14 +127,16 @@ if nd_drop <= -30:
 
 getattr(st, status_style)(f"**현재 시장 단계: {status_msg}**")
 
-# --- [수정된 부분: 클릭해야 볼 수 있는 세팅값 테이블] ---
-with st.expander("⚙️ 현재 적용된 세팅값 확인 (클릭)", expanded=False):
-    setting_data = {
-        "항목": ["적용 배율", "SCHD 비중", "TDF 2045 비중", "S&P 500 비중", "나스닥 100 비중"],
-        "수치": [f"{multiplier}x", f"{w_schd}%", f"{w_tdf}%", f"{w_sp500}%", f"{w_nasdaq}%"],
-        "상태": [status_msg, "보정안 반영" if w_schd != u_schd_val else "기본값", "고정", "고정", "보정안 반영" if w_nasdaq != u_nasdaq_val else "기본값"]
+# --- [수정 부분: 클릭 시 전체 비중/배율 기준표 표시] ---
+with st.expander("📋 전체 비중 및 배율 설정 기준표 확인 (클릭)", expanded=False):
+    rules_data = {
+        "단계": ["평시", "주의", "공포", "초공포", "위기"],
+        "배율": ["1.0x", "1.2x", "2.0x", "2.5x", "3.0x"],
+        "조건 (VIX/하락률)": ["-8% 미만", "VIX 25↑ / S&P -8%↓", "VIX 30↑ / S&P -15%↓", "VIX 45↑ / S&P -25%↓", "VIX 50↑ / S&P -35%↓"],
+        "비중 (SCHD/NDX)": ["30% / 20%", "30% / 20%", "25% / 25%", "20% / 30%", "20% / 30%"]
     }
-    st.table(pd.DataFrame(setting_data))
+    st.table(pd.DataFrame(rules_data))
+    st.info("💡 나스닥 100 하락률이 -30%를 넘을 경우, 단계와 상관없이 나스닥 비중은 30%로 강제 고정됩니다.")
 
 # 7. 이번 주 매수 실행 테이블
 st.subheader("💰 금주 종목별 매수액")
@@ -149,12 +147,7 @@ buy_list = []
 for name, weight in zip(names, weights):
     base_amt = int(base_total_val * (weight / 100))
     final_amt = int(base_amt * multiplier)
-    buy_list.append({
-        "종목": name, 
-        "비중": f"{weight}%", 
-        "기본매수액": f"{base_amt}만", 
-        "최종매수액": f"**{final_amt}만**"
-    })
+    buy_list.append({"종목": name, "비중": f"{weight}%", "기본매수액": f"{base_amt}만", "최종매수액": f"**{final_amt}만**"})
 
 st.table(pd.DataFrame(buy_list))
 
@@ -170,13 +163,10 @@ with col_info:
     st.write(f"📊 **자동 누적:** {auto_total_invested}만 / **잔액:** {remaining}만")
 
 with col_btn:
-    st.button("실제 매수 완료 여부를 체크하세요", disabled=True)
     st.caption("※ 매주 화요일 14시 자동 갱신")
+    st.progress(min(auto_total_invested / full_budget_val, 1.0))
 
-st.progress(min(auto_total_invested / full_budget_val, 1.0))
-
-# 5. 설정 및 예산 관리 섹션
-with st.expander("🛠️ 기본 설정 및 예산 관리", expanded=False):
+# 9. 설정 섹션
+with st.expander("⚙️ 기본 설정 및 예산 관리", expanded=False):
     full_budget_val = st.number_input("전체 투자 예산 (만 원)", value=24900, step=100) 
     base_total_val = st.number_input("주당 기본 매수액 (만 원)", value=500, step=10)
-    # (비중 입력 로직 생략 없이 그대로 유지됨)
