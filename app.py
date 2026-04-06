@@ -46,6 +46,12 @@ st.markdown("""
         font-weight: bold;
         border: none;
     }
+    /* 금주 매수 총액 글씨 크기 조절 */
+    .weekly-total-text {
+        font-size: 1.2rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -88,39 +94,20 @@ st.markdown(f"""
 </table>
 """, unsafe_allow_html=True)
 
-# --- [5. 설정 및 예산 관리 섹션 (로직 반영을 위해 상단 이동)] ---
-with st.expander("⚙️ 기본 설정 및 예산 관리 (비중/금액 수정 가능)", expanded=False):
-    full_budget_val = st.number_input("전체 투자 예산 (만 원)", value=24900, step=100) 
-    base_total_val = st.number_input("주당 기본 매수액 (만 원)", value=500, step=10)
-    
-    st.write("---")
-    st.write("**평시(1.0x) 기준 기본 비중 (%)**")
-    col_w1, col_w2 = st.columns(2)
-    with col_w1:
-        u_schd_val = st.number_input("SCHD 비중", 0, 100, 30)
-        u_tdf_val = st.number_input("TDF 2045 비중", 0, 100, 30)
-    with col_w2:
-        u_sp500_val = st.number_input("S&P 500 비중", 0, 100, 20)
-        u_nasdaq_val = st.number_input("나스닥 100 비중", 0, 100, 20)
+# --- [로직용 기본값 설정 (UI 표시 전 계산)] ---
+# 세션 상태 등을 사용하지 않고 input 값을 받기 위해 초기 변수 설정
+if 'f_budget' not in st.session_state: st.session_state.f_budget = 24900
+if 'b_total' not in st.session_state: st.session_state.b_total = 500
+if 'u_schd' not in st.session_state: st.session_state.u_schd = 30
+if 'u_tdf' not in st.session_state: st.session_state.u_tdf = 30
+if 'u_sp500' not in st.session_state: st.session_state.u_sp500 = 20
+if 'u_nasdaq' not in st.session_state: st.session_state.u_nasdaq = 20
 
-# --- [6. 자동 누적 자금 계산 로직] ---
-def calculate_auto_invested(base_total):
-    start_date = datetime(2026, 5, 5, 14, 0, 0)
-    now = datetime.now()
-    if now < start_date:
-        return 0
-    diff = now - start_date
-    weeks_passed = (diff.total_seconds() // (7 * 24 * 3600)) + 1
-    return int(weeks_passed * base_total)
-
-# 자동 누적액 계산 (설정된 base_total_val 반영)
-auto_total_invested = calculate_auto_invested(base_total_val)
-
-# 7. 보정안 로직 엔진
+# 5. 보정안 로직 엔진
 vix, sp_drop, nd_drop = market['VIX']['current'], market['S&P500']['drop'], market['Nasdaq100']['drop']
 multiplier = 1.0
 status_style, status_msg = "success", "✅ 1.0x (평시)"
-w_schd, w_tdf, w_sp500, w_nasdaq = u_schd_val, u_tdf_val, u_sp500_val, u_nasdaq_val
+w_schd, w_tdf, w_sp500, w_nasdaq = st.session_state.u_schd, st.session_state.u_tdf, st.session_state.u_sp500, st.session_state.u_nasdaq
 
 if vix >= 50 or sp_drop <= -35:
     multiplier, status_style, status_msg = 3.0, "error", "💀 3.0x (위기)"; w_schd, w_nasdaq = 20, 30
@@ -137,35 +124,59 @@ if nd_drop <= -30:
 
 getattr(st, status_style)(f"**현재 시장 단계: {status_msg}**")
 
-# 8. 이번 주 매수 실행 테이블 (총액 표시 추가)
-weekly_total = int(base_total_val * multiplier)
-st.subheader(f"💰 금주 매수 총액: {weekly_total}만 원")
+# 6. 이번 주 매수 실행 테이블
+weekly_total = int(st.session_state.b_total * multiplier)
+st.markdown(f'<p class="weekly-total-text">💰 금주 매수 총액: {weekly_total}만 원</p>', unsafe_allow_html=True)
 
 names = ["SCHD", "TDF 2045", "S&P 500", "나스닥 100"]
 weights = [w_schd, w_tdf, w_sp500, w_nasdaq]
 buy_list = []
 
 for name, weight in zip(names, weights):
-    base_amt = int(base_total_val * (weight / 100))
+    base_amt = int(st.session_state.b_total * (weight / 100))
     final_amt = int(base_amt * multiplier)
     buy_list.append({"종목": name, "비중": f"{weight}%", "기본매수액": f"{base_amt}만", "최종매수액": f"**{final_amt}만**"})
 
 st.table(pd.DataFrame(buy_list))
 
-# 9. 자산 관리 대시보드
+# 7. 자산 관리 대시보드
 st.markdown("---")
-col_info, col_btn = st.columns([1.8, 1.2])
+def calculate_auto_invested(base_total):
+    start_date = datetime(2026, 5, 5, 14, 0, 0)
+    now = datetime.now()
+    if now < start_date: return 0
+    weeks_passed = ((now - start_date).total_seconds() // (7 * 24 * 3600)) + 1
+    return int(weeks_passed * base_total)
 
+auto_total_invested = calculate_auto_invested(st.session_state.b_total)
+remaining = st.session_state.f_budget - auto_total_invested
+
+col_info, col_btn = st.columns([1.8, 1.2])
 with col_info:
-    remaining = full_budget_val - auto_total_invested
     st.markdown(f"#### 📊 누적 매수: **{auto_total_invested}만**")
-    st.write(f"📉 잔액: {remaining}만 / 전체 예산: {full_budget_val}만")
+    st.write(f"📉 잔액: {remaining}만 / 전체 예산: {st.session_state.f_budget}만")
 
 with col_btn:
     st.caption("※ 매주 화요일 14시 자동 갱신")
-    st.progress(min(auto_total_invested / full_budget_val, 1.0))
+    st.progress(min(auto_total_invested / st.session_state.f_budget, 1.0))
 
-# 10. 전체 비중 및 배율 설정 기준표 (가장 하단)
+# 8. 설정 및 예산 관리 (맨 밑으로 이동)
+with st.expander("⚙️ 기본 설정 및 예산 관리 (비중/금액 수정 가능)", expanded=False):
+    st.session_state.f_budget = st.number_input("전체 투자 예산 (만 원)", value=st.session_state.f_budget, step=100) 
+    st.session_state.b_total = st.number_input("주당 기본 매수액 (만 원)", value=st.session_state.b_total, step=10)
+    
+    st.write("---")
+    st.write("**평시(1.0x) 기준 기본 비중 (%)**")
+    col_w1, col_w2 = st.columns(2)
+    with col_w1:
+        st.session_state.u_schd = st.number_input("SCHD 비중", 0, 100, st.session_state.u_schd)
+        st.session_state.u_tdf = st.number_input("TDF 2045 비중", 0, 100, st.session_state.u_tdf)
+    with col_w2:
+        st.session_state.u_sp500 = st.number_input("S&P 500 비중", 0, 100, st.session_state.u_sp500)
+        st.session_state.u_nasdaq = st.number_input("나스닥 100 비중", 0, 100, st.session_state.u_nasdaq)
+    if st.button("설정값 적용"): st.rerun()
+
+# 9. 전체 비중 및 배율 설정 기준표 (가장 하단)
 with st.expander("📋 전체 비중 및 배율 설정 기준표 확인 (클릭)", expanded=False):
     rules_data = {
         "단계": ["평시", "주의", "공포", "초공포", "위기"],
