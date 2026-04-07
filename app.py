@@ -37,7 +37,7 @@ st.markdown("""
         border-bottom: 1px solid #444;
     }
     .drop-val { color: #ff4b4b; }
-    .rsi-val { color: #4bafff; } /* RSI 전용 색상 */
+    .rsi-val { color: #4bafff; }
     .stButton>button {
         width: 100%; 
         border-radius: 8px; 
@@ -69,18 +69,13 @@ def get_market_data():
         ticker = yf.Ticker(symbol)
         hist = ticker.history(period="1y")
         current = hist['Close'].iloc[-1]
-        
-        # 하락률 계산
         high = hist['High'].max()
         drop = ((current - high) / high) * 100
-        
-        # RSI 계산 (14일 기준)
         delta = hist['Close'].diff()
         gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
         loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
         rs = gain / loss
         rsi = 100 - (100 / (1 + rs))
-        
         data[name] = {"current": current, "drop": drop, "rsi": rsi.iloc[-1]}
     return data
 
@@ -90,7 +85,7 @@ except:
     st.error("데이터를 불러오지 못했습니다.")
     st.stop()
 
-# 4. 상단 지수 현황 (S&P 500 RSI 추가)
+# 4. 상단 지수 현황
 st.markdown(f"""
 <table class="metric-table">
     <tr>
@@ -173,7 +168,7 @@ with col_btn:
     st.caption("※ 매주 화요일 14시 자동 갱신")
     st.progress(min(auto_total_invested / st.session_state.f_budget, 1.0))
 
-# 8. 설정 및 예산 관리
+# 8. 설정 및 예산 관리 (하단)
 with st.expander("⚙️ 기본 설정 및 예산 관리 (비중/금액 수정 가능)", expanded=False):
     st.session_state.f_budget = st.number_input("전체 투자 예산 (만 원)", value=st.session_state.f_budget, step=100) 
     st.session_state.b_total = st.number_input("주당 기본 매수액 (만 원)", value=st.session_state.b_total, step=10)
@@ -201,11 +196,8 @@ with st.expander("📋 전체 비중 및 배율 설정 기준표 확인 (클릭)
 
 # 10. 자산 성장 시나리오 시뮬레이션
 with st.expander("📈 [자산 성장 시나리오] 연 8% & 10% 수익률 시뮬레이션", expanded=False):
-    st.caption("(단위: 만 원 / 세전 기준)")
     growth_data = {
         "경과 연도": ["2026(현재)", "2027", "2028", "2029", "2030", "2031", "2032", "2033", "2034", "2035", "2036", "2037", "2038", "최종(2039)"],
         "예상 연령": ["47세", "48세", "49세", "50세", "51세", "52세", "53세", "54세", "55세", "56세", "57세", "58세", "59세", "60세"],
         "연 8% 수익": ["26,244", "29,603", "33,269", "37,267", "41,626", "46,377", "51,553", "57,189", "63,321", "70,000", "77,260", "85,152", "93,733", "103,061"],
-        "연 10% 수익": ["26,560", "30,498", "34,869", "39,713", "45,081", "51,032", "57,630", "64,945", "73,052", "82,040", "92,001", "103,040", "115,274", "128,829"]
-    }
-    st.table(pd.DataFrame(growth_data))
+        "연 10% 수익": ["26,560", "30,498", "34,869", "39,713", "45,081", "51,032", "57,630", "64,945", "73,052", "82,040", "92,001", "103,040", "115,274", "1
