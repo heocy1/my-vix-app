@@ -58,7 +58,7 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # 2. 메인 타이틀
-st.markdown('<p class="main-title">📉 퇴직연금 마스터 매수 가이드</p>', unsafe_allow_html=True)
+st.markdown('<p class="main-title">📉 퇴직연금 실속형 매수 가이드</p>', unsafe_allow_html=True)
 
 # 3. 실시간 시장 데이터 및 RSI 계산
 @st.cache_data(ttl=3600)
@@ -71,14 +71,11 @@ def get_market_data():
         current = hist['Close'].iloc[-1]
         high = hist['High'].max()
         drop = ((current - high) / high) * 100
-        
-        # RSI 14일 계산 로직
         delta = hist['Close'].diff()
         gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
         loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
         rs = gain / loss
         rsi = 100 - (100 / (1 + rs))
-        
         data[name] = {"current": current, "drop": drop, "rsi": rsi.iloc[-1]}
     return data
 
@@ -88,7 +85,7 @@ except:
     st.error("데이터를 불러오지 못했습니다.")
     st.stop()
 
-# 4. 상단 지수 현황 (RSI 포함)
+# 4. 상단 지수 현황
 st.markdown(f"""
 <table class="metric-table">
     <tr>
@@ -114,7 +111,7 @@ if 'u_tdf' not in st.session_state: st.session_state.u_tdf = 30
 if 'u_sp500' not in st.session_state: st.session_state.u_sp500 = 20
 if 'u_nasdaq' not in st.session_state: st.session_state.u_nasdaq = 20
 
-# 5. [강화된] 보정안 로직 엔진 (VIX, 하락률, RSI 통합)
+# 5. [실속형] 보정안 로직 엔진 (방금 조정된 보수적 기준 적용)
 vix = market['VIX']['current']
 sp_drop = market['S&P500']['drop']
 sp_rsi = market['S&P500']['rsi']
@@ -124,26 +121,28 @@ multiplier = 1.0
 status_style, status_msg = "success", "✅ 1.0x (평시)"
 w_schd, w_tdf, w_sp500, w_nasdaq = st.session_state.u_schd, st.session_state.u_tdf, st.session_state.u_sp500, st.session_state.u_nasdaq
 
-# 4단계: 위기 (3.0x) - 하나라도 해당 시 작동
-if vix >= 50 or sp_drop <= -35 or sp_rsi <= 25:
-    multiplier, status_style, status_msg = 3.0, "error", "💀 3.0x (위기/과매도 극치)"
+# 4단계: 위기 (3.0x)
+if vix >= 50 or sp_drop <= -30 or sp_rsi <= 28:
+    multiplier, status_style, status_msg = 3.0, "error", "💀 3.0x (위기/역사적 저점)"
     w_schd, w_nasdaq = 20, 30
+
 # 3단계: 공포 (2.0x)
-elif vix >= 30 or sp_drop <= -15 or sp_rsi <= 35:
-    multiplier, status_style, status_msg = 2.0, "error", "🔥 2.0x (공포/과매도 진입)"
+elif vix >= 35 or sp_drop <= -15 or sp_rsi <= 32:
+    multiplier, status_style, status_msg = 2.0, "error", "🔥 2.0x (공포/기회 구간)"
     w_schd, w_nasdaq = 25, 25
+
 # 2단계: 주의 (1.2x)
-elif vix >= 25 or sp_drop <= -8 or sp_rsi <= 45:
-    multiplier, status_style, status_msg = 1.2, "warning", "⚠️ 1.2x (주의/조정 단계)"
+elif vix >= 28 or sp_drop <= -10 or sp_rsi <= 40:
+    multiplier, status_style, status_msg = 1.2, "warning", "⚠️ 1.2x (조정 주의)"
 
-# 나스닥 특수 대응 (나스닥이 유독 많이 빠질 때)
-if nd_drop <= -30:
+# 나스닥 특수 대응
+if nd_drop <= -25:
     w_schd, w_nasdaq = 20, 30
-    if multiplier < 2.5: # 나스닥 폭락 시 최소 2.5배 이상 권장 로직 추가
-        multiplier = 2.5
-        status_msg += " + QQQ 특수 대응(2.5x)"
+    if multiplier < 1.5:
+        multiplier = 1.5
+        status_msg += " (나스닥 낙폭 과대)"
 
-getattr(st, status_style)(f"**현재 시장 단계: {status_msg}**")
+getattr(st, status_style)(f"**현재 시장 진단: {status_msg}**")
 
 # 6. 이번 주 매수 실행 테이블
 weekly_total = int(st.session_state.b_total * multiplier)
@@ -182,42 +181,32 @@ with col_btn:
     st.progress(min(auto_total_invested / st.session_state.f_budget, 1.0))
 
 # 8. 설정 및 예산 관리
-with st.expander("⚙️ 기본 설정 및 예산 관리 (비중/금액 수정 가능)", expanded=False):
+with st.expander("⚙️ 기본 설정 및 예산 관리", expanded=False):
     st.session_state.f_budget = st.number_input("전체 투자 예산 (만 원)", value=st.session_state.f_budget, step=100) 
     st.session_state.b_total = st.number_input("주당 기본 매수액 (만 원)", value=st.session_state.b_total, step=10)
-    
-    st.write("---")
-    st.write("**평시(1.0x) 기준 기본 비중 (%)**")
-    col_w1, col_w2 = st.columns(2)
-    with col_w1:
-        st.session_state.u_schd = st.number_input("SCHD 비중", 0, 100, st.session_state.u_schd)
-        st.session_state.u_tdf = st.number_input("TDF 2045 비중", 0, 100, st.session_state.u_tdf)
-    with col_w2:
-        st.session_state.u_sp500 = st.number_input("S&P 500 비중", 0, 100, st.session_state.u_sp500)
-        st.session_state.u_nasdaq = st.number_input("나스닥 100 비중", 0, 100, st.session_state.u_nasdaq)
     if st.button("설정값 적용"): st.rerun()
 
-# 9. 전체 비중 및 배율 설정 기준표
-with st.expander("📋 전체 비중 및 배율 설정 기준표 확인 (클릭)", expanded=False):
+# 9. 전체 비중 및 배율 설정 기준표 (수정된 기준 반영)
+with st.expander("📋 강화된 매수 기준표 확인 (실속형)", expanded=False):
     rules_data = {
         "단계": ["평시", "주의", "공포", "위기"],
         "배율": ["1.0x", "1.2x", "2.0x", "3.0x"],
         "주요 조건 (하나라도 해당 시)": [
             "정상 범위", 
-            "VIX 25↑ / S&P -8%↓ / RSI 45↓", 
-            "VIX 30↑ / S&P -15%↓ / RSI 35↓", 
-            "VIX 50↑ / S&P -35%↓ / RSI 25↓"
+            "VIX 28↑ / S&P -10%↓ / RSI 40↓", 
+            "VIX 35↑ / S&P -15%↓ / RSI 32↓", 
+            "VIX 50↑ / S&P -30%↓ / RSI 28↓"
         ],
         "비중 (SCHD/NDX)": ["30% / 20%", "30% / 20%", "25% / 25%", "20% / 30%"]
     }
     st.table(pd.DataFrame(rules_data))
 
-# 10. 자산 성장 시나리오 시뮬레이션
-with st.expander("📈 [자산 성장 시나리오] 연 8% & 10% 수익률 시뮬레이션", expanded=False):
+# 10. 자산 성장 시나리오 (기존 유지)
+with st.expander("📈 [자산 성장 시나리오] 시뮬레이션", expanded=False):
     growth_data = {
-        "경과 연도": ["2026(현재)", "2027", "2028", "2029", "2030", "2031", "2032", "2033", "2034", "2035", "2036", "2037", "2038", "최종(2039)"],
-        "예상 연령": ["47세", "48세", "49세", "50세", "51세", "52세", "53세", "54세", "55세", "56세", "57세", "58세", "59세", "60세"],
-        "연 8% 수익": ["26,244", "29,603", "33,269", "37,267", "41,626", "46,377", "51,553", "57,189", "63,321", "70,000", "77,260", "85,152", "93,733", "103,061"],
-        "연 10% 수익": ["26,560", "30,498", "34,869", "39,713", "45,081", "51,032", "57,630", "64,945", "73,052", "82,040", "92,001", "103,040", "115,274", "128,829"]
+        "경과 연도": ["2026(현재)", "2030", "2035", "최종(2039)"],
+        "예상 연령": ["47세", "51세", "56세", "60세"],
+        "연 8% 수익": ["26,244", "41,626", "70,000", "103,061"],
+        "연 10% 수익": ["26,560", "45,081", "82,040", "128,829"]
     }
     st.table(pd.DataFrame(growth_data))
