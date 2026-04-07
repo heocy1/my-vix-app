@@ -111,7 +111,7 @@ if 'u_tdf' not in st.session_state: st.session_state.u_tdf = 30
 if 'u_sp500' not in st.session_state: st.session_state.u_sp500 = 20
 if 'u_nasdaq' not in st.session_state: st.session_state.u_nasdaq = 20
 
-# 5. [실속형] 보정안 로직 엔진 (방금 조정된 보수적 기준 적용)
+# 5. [실속형] 보정안 로직 엔진
 vix = market['VIX']['current']
 sp_drop = market['S&P500']['drop']
 sp_rsi = market['S&P500']['rsi']
@@ -121,21 +121,15 @@ multiplier = 1.0
 status_style, status_msg = "success", "✅ 1.0x (평시)"
 w_schd, w_tdf, w_sp500, w_nasdaq = st.session_state.u_schd, st.session_state.u_tdf, st.session_state.u_sp500, st.session_state.u_nasdaq
 
-# 4단계: 위기 (3.0x)
 if vix >= 50 or sp_drop <= -30 or sp_rsi <= 28:
     multiplier, status_style, status_msg = 3.0, "error", "💀 3.0x (위기/역사적 저점)"
     w_schd, w_nasdaq = 20, 30
-
-# 3단계: 공포 (2.0x)
 elif vix >= 35 or sp_drop <= -15 or sp_rsi <= 32:
     multiplier, status_style, status_msg = 2.0, "error", "🔥 2.0x (공포/기회 구간)"
     w_schd, w_nasdaq = 25, 25
-
-# 2단계: 주의 (1.2x)
 elif vix >= 28 or sp_drop <= -10 or sp_rsi <= 40:
     multiplier, status_style, status_msg = 1.2, "warning", "⚠️ 1.2x (조정 주의)"
 
-# 나스닥 특수 대응
 if nd_drop <= -25:
     w_schd, w_nasdaq = 20, 30
     if multiplier < 1.5:
@@ -180,13 +174,28 @@ with col_btn:
     st.caption("※ 매주 화요일 14시 자동 갱신")
     st.progress(min(auto_total_invested / st.session_state.f_budget, 1.0))
 
-# 8. 설정 및 예산 관리
-with st.expander("⚙️ 기본 설정 및 예산 관리", expanded=False):
+# 8. 설정 및 예산 관리 (종목별 비중 설정 포함)
+with st.expander("⚙️ 기본 설정 및 예산 관리 (비중/금액 수정)", expanded=False):
     st.session_state.f_budget = st.number_input("전체 투자 예산 (만 원)", value=st.session_state.f_budget, step=100) 
     st.session_state.b_total = st.number_input("주당 기본 매수액 (만 원)", value=st.session_state.b_total, step=10)
+    
+    st.write("---")
+    st.write("**평시(1.0x) 기준 기본 비중 (%)**")
+    col_w1, col_w2 = st.columns(2)
+    with col_w1:
+        st.session_state.u_schd = st.number_input("SCHD 비중", 0, 100, st.session_state.u_schd)
+        st.session_state.u_tdf = st.number_input("TDF 2045 비중", 0, 100, st.session_state.u_tdf)
+    with col_w2:
+        st.session_state.u_sp500 = st.number_input("S&P 500 비중", 0, 100, st.session_state.u_sp500)
+        st.session_state.u_nasdaq = st.number_input("나스닥 100 비중", 0, 100, st.session_state.u_nasdaq)
+    
+    total_w = st.session_state.u_schd + st.session_state.u_tdf + st.session_state.u_sp500 + st.session_state.u_nasdaq
+    st.write(f"현재 비중 합계: **{total_w}%**")
+    if total_w != 100: st.warning("비중 합계가 100%가 되도록 조정해주세요.")
+    
     if st.button("설정값 적용"): st.rerun()
 
-# 9. 전체 비중 및 배율 설정 기준표 (수정된 기준 반영)
+# 9. 기준표
 with st.expander("📋 강화된 매수 기준표 확인 (실속형)", expanded=False):
     rules_data = {
         "단계": ["평시", "주의", "공포", "위기"],
@@ -197,16 +206,16 @@ with st.expander("📋 강화된 매수 기준표 확인 (실속형)", expanded=
             "VIX 35↑ / S&P -15%↓ / RSI 32↓", 
             "VIX 50↑ / S&P -30%↓ / RSI 28↓"
         ],
-        "비중 (SCHD/NDX)": ["30% / 20%", "30% / 20%", "25% / 25%", "20% / 30%"]
+        "비중 (SCHD/NDX)": ["기본 설정", "기본 유지", "25% / 25%", "20% / 30%"]
     }
     st.table(pd.DataFrame(rules_data))
 
-# 10. 자산 성장 시나리오 (기존 유지)
-with st.expander("📈 [자산 성장 시나리오] 시뮬레이션", expanded=False):
+# 10. 자산 성장 시나리오 (연도별 전체 데이터)
+with st.expander("📈 [자산 성장 시나리오] 은퇴까지 연도별 시뮬레이션", expanded=False):
     growth_data = {
-        "경과 연도": ["2026(현재)", "2030", "2035", "최종(2039)"],
-        "예상 연령": ["47세", "51세", "56세", "60세"],
-        "연 8% 수익": ["26,244", "41,626", "70,000", "103,061"],
-        "연 10% 수익": ["26,560", "45,081", "82,040", "128,829"]
+        "경과 연도": ["2026(현재)", "2027", "2028", "2029", "2030", "2031", "2032", "2033", "2034", "2035", "2036", "2037", "2038", "최종(2039)"],
+        "예상 연령": ["47세", "48세", "49세", "50세", "51세", "52세", "53세", "54세", "55세", "56세", "57세", "58세", "59세", "60세"],
+        "연 8% 수익": ["2.6억", "3.0억", "3.3억", "3.7억", "4.2억", "4.6억", "5.2억", "5.7억", "6.3억", "7.0억", "7.7억", "8.5억", "9.4억", "10.3억"],
+        "연 10% 수익": ["2.7억", "3.0억", "3.5억", "4.0억", "4.5억", "5.1억", "5.8억", "6.5억", "7.3억", "8.2억", "9.2억", "10.3억", "11.5억", "12.9억"]
     }
     st.table(pd.DataFrame(growth_data))
