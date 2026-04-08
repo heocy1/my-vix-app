@@ -179,4 +179,41 @@ with col1:
     st.markdown(f"#### 📊 누적 매수: **{invested}만**")
     st.write(f"📉 잔액: {rem}만 / 전체: {st.session_state.f_budget}만")
 with col2:
-    st.progress(min(invest
+    st.progress(min(invested / st.session_state.f_budget, 1.0))
+
+# 8. 설정 및 예산 관리 (종목별 비중 설정 포함)
+with st.expander("⚙️ 기본 설정 및 종목 비중 관리", expanded=False):
+    st.session_state.f_budget = st.number_input("전체 투자 예산 (만 원)", value=st.session_state.f_budget, step=100) 
+    st.session_state.b_total = st.number_input("주당 기본 매수액 (만 원)", value=st.session_state.b_total, step=10)
+    st.write("---")
+    st.write("**평시(1.0x) 기준 기본 비중 (%)**")
+    c_w1, c_w2 = st.columns(2)
+    with c_w1:
+        st.session_state.u_schd = st.number_input("SCHD 비중", 0, 100, st.session_state.u_schd)
+        st.session_state.u_tdf = st.number_input("TDF 2045 비중", 0, 100, st.session_state.u_tdf)
+    with c_w2:
+        st.session_state.u_sp500 = st.number_input("S&P 500 비중", 0, 100, st.session_state.u_sp500)
+        st.session_state.u_nasdaq = st.number_input("나스닥 100 비중", 0, 100, st.session_state.u_nasdaq)
+    
+    total_w = st.session_state.u_schd + st.session_state.u_tdf + st.session_state.u_sp500 + st.session_state.u_nasdaq
+    if total_w != 100: st.warning(f"현재 비중 합계: {total_w}% (100%를 맞춰주세요)")
+    if st.button("설정값 적용"): st.rerun()
+
+# 9. 기준표
+with st.expander("📋 매수 배율 판단 기준표", expanded=False):
+    st.table(pd.DataFrame({
+        "단계": ["평시", "주의", "공포", "위기"],
+        "배율": ["1.0x", "1.2x", "2.0x", "3.0x"],
+        "조건": ["정상 범위", "VIX 28↑ / S&P -10% / RSI 40", "VIX 35↑ / S&P -15% / RSI 32", "VIX 50↑ / S&P -30% / RSI 28"]
+    }))
+
+# 10. 자산 성장 시나리오 (4%, 8%, 10% 모두 포함)
+with st.expander("📈 [성장 시나리오] 60세 은퇴까지 연도별 시뮬레이션", expanded=False):
+    growth_data = {
+        "연도": [str(y) for y in range(2026, 2040)],
+        "나이": [str(47 + i) for i in range(14)],
+        "연 4%": ["2.6억", "2.8억", "3.0억", "3.1억", "3.3억", "3.5억", "3.7억", "4.0억", "4.2억", "4.5억", "4.7억", "5.0억", "5.3억", "5.6억"],
+        "연 8%": ["2.6억", "3.0억", "3.3억", "3.7억", "4.2억", "4.6억", "5.2억", "5.7억", "6.3억", "7.0억", "7.7억", "8.5억", "9.4억", "10.3억"],
+        "연 10%": ["2.7억", "3.0억", "3.5억", "4.0억", "4.5억", "5.1억", "5.8억", "6.5억", "7.3억", "8.2억", "9.2억", "10.3억", "11.5억", "12.9억"]
+    }
+    st.table(pd.DataFrame(growth_data))
